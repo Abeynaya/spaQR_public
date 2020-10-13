@@ -1,0 +1,26 @@
+USE_METIS=0
+USE_MKL=0
+HSL_AVAIL=0
+
+CC = g++ -Wextra -Wnull-dereference -Wno-sign-compare -Wno-int-in-bool-context # Needs gcc/8.* otherwise complex fails, somewhere
+
+ifeq ($(USE_MKL),1)
+    BLASDIR  = ${MKLROOT}/include
+    BLASLIB  = ${MKLROOT}/lib/intel64
+else
+    BLASDIR = /share/software/user/open/openblas/0.3.4/include
+    BLASLIB = /share/software/user/open/openblas/0.3.4/lib
+endif
+
+EIGENDIR = /share/software/user/open/eigen/3.3.3/include/eigen3
+METISDIR = /share/software/user/open/metis/5.1.0/include
+METISLIB = /share/software/user/open/metis/5.1.0/lib 
+
+
+PATOHLIB = $(HOME)/patoh/Linux-x86_64/libpatoh.a
+PATOHDIR = $(HOME)/patoh/Linux-x86_64
+
+ifeq ($(HSL_AVAIL),1)
+	HSLLIB = $(HOME)/hsl_mc64-2.3.1/src/libhsl_mc64.a
+	HSLDIR = $(HOME)/hsl_mc64-2.3.1/include
+endif
