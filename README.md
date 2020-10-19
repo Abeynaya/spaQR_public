@@ -1,6 +1,6 @@
 ### spaQR - Sparsified QR for sparse square matrices
 
-This repositroy contains the spaQR code as described in the paper "Hierarchical Orthogonal Factorization : sparse square matrices"
+This repositroy contains the spaQR code as described in the paper "Hierarchical Orthogonal Factorization : sparse square matrices" available at https://arxiv.org/abs/2010.06807 (preprint)
 
 ## Packages/Libraries
 Necessary:
@@ -69,3 +69,8 @@ GMRES: #iterations: 5, residual |Ax-b|/|b|: 3.008e-13
   GMRES: 6.615e-01 s.
 <<<<GMRES=5
 ```
+## Note
+
+1. You can generate more sparse matrices corresponding to Poisson equation, (High constrast) Advection diffusion using the open source codes in https://github.com/leopoldcambier/MatrixGen
+2. The MC64 routine (bipartite matching) rountine from HSL is needed for problems with high condition number, to ensure stability
+

@@ -746,20 +746,18 @@ void Tree::get_sparsity(Cluster* c){
     for (auto edge: c->edgesOut){
         if (edge->A21 != nullptr){
             Cluster* n = edge->n2;
+            row_sparsity.insert(n);
                 if (n->get_id() != c->get_id()){
                     for (auto ein: n->edgesIn){
                         if (ein->A21 != nullptr && ein->n1 != c && !ein->n1->is_eliminated()){
                             Cluster* nin = ein->n1;
-                            bool valid = true;
+                            // bool valid = true;
 
-                            // bool valid = check_if_valid(c->get_id(), nin->get_id(), col_sparsity);
+                            bool valid = check_if_valid(c->get_id(), nin->get_id(), col_sparsity);
                             if ( !geo && valid) {
                                 double tnorm = ((*(edge->A21)).transpose()*(*(ein->A21))).norm();
                                 valid = tnorm >(1e-14);
                             }
-                            // if (!valid){
-                            //     cout << c->get_id() << " " << nin->get_id() << " " << tnorm << endl;
-                            // } 
 
                             if (valid) row_sparsity.insert(nin);
                         }
@@ -768,9 +766,9 @@ void Tree::get_sparsity(Cluster* c){
                     for (auto eout: n->edgesOut){
                         if (eout->A12 != nullptr){
                             Cluster* nout = eout->n2;
-                            bool valid = true;
+                            // bool valid = true;
 
-                            // bool valid = check_if_valid(c->get_id(), nout->get_id(), col_sparsity);
+                            bool valid = check_if_valid(c->get_id(), nout->get_id(), col_sparsity);
                             if ( !geo && valid) {
                                 valid = ((*(edge->A21)).transpose()*(*(eout->A12))).norm()>(1e-14);
                             }
