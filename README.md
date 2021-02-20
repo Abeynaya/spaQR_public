@@ -1,5 +1,7 @@
 ### spaQR - Sparsified QR for sparse square matrices
 
+(Code for sparse least squares matrices coming up soon)
+
 This repositroy contains the spaQR code as described in the paper "Hierarchical Orthogonal Factorization : sparse square matrices" available at https://arxiv.org/abs/2010.06807 (preprint)
 
 ## Packages/Libraries
