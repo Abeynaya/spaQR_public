@@ -397,7 +397,7 @@ void partition_patoh(SpMat& A, int nlevels, vector<int>& parts){
     int nparts = pow(2,nlevels-1);
 
     PaToH_Parameters args;
-    PaToH_Initialize_Parameters(&args, PATOH_CONPART, PATOH_SUGPARAM_QUALITY); // Initialize parameters
+    PaToH_Initialize_Parameters(&args, PATOH_CONPART, PATOH_SUGPARAM_DEFAULT); // Initialize parameters
     args._k = nparts;
     args.seed = 42;
 
