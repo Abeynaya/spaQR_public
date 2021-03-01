@@ -10,7 +10,6 @@ Necessary:
 1. Download Eigen library: http://eigen.tuxfamily.org/index.php?title=Main_Page
 2. Download PaToH library: https://www.cc.gatech.edu/~umit/software.html
 3. Download, build and install Openblas: https://www.openblas.net/ or Intel MKL https://software.intel.com/content/www/us/en/develop/tools/math-kernel-library.html
-4. Clone linalgCpp repository from https://github.com/leopoldcambier/linalgCpp for reading in sparse matrices
 
 Optional:
 
@@ -75,4 +74,3 @@ GMRES: #iterations: 5, residual |Ax-b|/|b|: 3.008e-13
 
 1. You can generate more sparse matrices corresponding to Poisson equation, (High constrast) Advection diffusion using the open source codes in https://github.com/leopoldcambier/MatrixGen
 2. The MC64 routine (bipartite matching) rountine from HSL is needed for problems with high condition number, to ensure stability
-

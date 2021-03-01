@@ -14,8 +14,7 @@ endif
 
 EIGENDIR = /share/software/user/open/eigen/3.3.3/include/eigen3
 METISDIR = /share/software/user/open/metis/5.1.0/include
-METISLIB = /share/software/user/open/metis/5.1.0/lib 
-
+METISLIB = /share/software/user/open/metis/5.1.0/lib
 
 PATOHLIB = $(HOME)/patoh/Linux-x86_64/libpatoh.a
 PATOHDIR = $(HOME)/patoh/Linux-x86_64
