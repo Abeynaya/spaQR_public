@@ -7,11 +7,14 @@ OBJDIR = obj
 INCLUDE = -I$(INCDIR) -I$(EIGENDIR) -I$(BLASDIR) 
 LDFLAGS +=  -L$(BLASLIB) 
 
-CFLAGS = -std=c++11 -Wall -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE
+CFLAGS = -std=c++14 -Wall -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE
 ifdef DEBUG
-    CFLAGS += -g -O0 -D_GLIBCXX_DEBUG -fsanitize=address  
+    CFLAGS += -g -Og -D_GLIBCXX_DEBUG -fsanitize=address  
 else
-    CFLAGS += -g -O2 -DEIGEN_NO_DEBUG -DNDEBUG -Wno-unused-variable  
+    CFLAGS += -g -O3 -DEIGEN_NO_DEBUG -DNDEBUG -Wno-unused-variable  
+    CFLAGS += -mtune=native -march=native -fomit-frame-pointer -funroll-loops -ffast-math 
+    #-funsafe-math-optimizations
+
 endif
 
 #Metis or Patoh
@@ -40,8 +43,8 @@ ifeq ($(HSL_AVAIL),1)
 endif
 
 
-DEPS = $(INCDIR)/util.h  $(INCDIR)/tree.h $(INCDIR)/partition.h  $(INCDIR)/cluster.h $(INCDIR)/edge.h $(INCDIR)/operations.h  $(INCDIR)/stats.h $(INCDIR)/profile.h $(INCDIR)/is.h 
-OBJ  = $(OBJDIR)/util.o  $(OBJDIR)/tree.o $(OBJDIR)/partition.o $(OBJDIR)/cluster.o $(OBJDIR)/edge.o $(OBJDIR)/operations.o  $(OBJDIR)/stats.o  $(OBJDIR)/profile.o $(OBJDIR)/is.o
+DEPS = $(INCDIR)/util.h  $(INCDIR)/tree.h $(INCDIR)/partition.h  $(INCDIR)/cluster.h $(INCDIR)/edge.h $(INCDIR)/operations.h $(INCDIR)/toperations.h  $(INCDIR)/profile.h $(INCDIR)/is.h 
+OBJ  = $(OBJDIR)/util.o  $(OBJDIR)/tree.o $(OBJDIR)/partition.o $(OBJDIR)/cluster.o $(OBJDIR)/edge.o $(OBJDIR)/operations.o $(OBJDIR)/toperations.o   $(OBJDIR)/profile.o $(OBJDIR)/is.o
 
 all: spaQR
 

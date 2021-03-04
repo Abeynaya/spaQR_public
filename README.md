@@ -1,8 +1,13 @@
 ### spaQR - Sparsified QR for sparse square matrices
 
-(Code for sparse least squares matrices coming up soon)
+This repositroy contains the spaQR code as described in the papers
 
-This repositroy contains the spaQR code as described in the paper "Hierarchical Orthogonal Factorization : sparse square matrices" available at https://arxiv.org/abs/2010.06807 (preprint)
+1. "Hierarchical Orthogonal Factorization : sparse square matrices" available at https://arxiv.org/abs/2010.06807 (preprint)
+2. "Hierarchical Orthogonal Factorization : sparse least squares problems" available at https://arxiv.org/abs/2102.09878 (preprint)
+
+## Disclaimer
+
+This is a very researchy code and can be optimized more. I'll try to update the repository as improvements are made. That being said, it still gives reasonable performance on test problems. I'll be happy to help or discuss more if you are interested in using the code for any of your applications. 
 
 ## Packages/Libraries
 Necessary:
@@ -13,7 +18,7 @@ Necessary:
 
 Optional:
 
-1. To experiment with the row reordering strategy based on bipartite matching -- Get access to the mc64 routine from http://www.hsl.rl.ac.uk/catalogue/mc64.html (Not open source, free academic access)
+1. To experiment with the row reordering strategy based on bipartite matching -- Get access to the mc64 routine from http://www.hsl.rl.ac.uk/catalogue/mc64.html (Not open source, free academic access) -- Necessary for rectangular matrices
 
 ## Build
 
@@ -25,14 +30,16 @@ Optional:
 3. Copy one of the files in ```Makefile-confs/ ``` folder and save as ```Makefile.conf``` with the location of the necessary libraries in your system. In addition, you can set the following variables in the ```Makefile.conf```
    - ```USE_MKL``` to 1 if you want to use Intel MKL or 0 to use Openblas. Default is 0.
    - ```USE_METIS``` to 1 if you want to use Metis to partition the matrix or 0 to use PaToH to partition. Default is 0. (For some reason, I couldn't build the code including both Metis and PaToH)
-   - ```HSL_AVAIL``` to 1 if you have HSL MC64 routine. Default is 0.
-You can also set these options at compile time.
+   - ```HSL_AVAIL``` to 1 if you have HSL MC64 routine. Default is 0
+You can also set these options at compile time
 4. Compile it with ``` make ``` or ```make USE_MKL=1 HSL_AVAIL=1```
 
 ## Run
 
 Run it as
 ```./spaQR -m mats/advdiff/2d/advdiff_2_128_1_p1_1000.mm  -n 128 -d 2 -t 1e-3 --scale 1```
+
+```./spaQR -m mats/invpoi/2d/invpoi_2d_2_256.mm -t 1e-2 --skip 3  -n 256 -d 2 --hsl 1```
 
 You can get all the arguments you can pass in to the function by typing ```./spaQR --help```
 
@@ -70,7 +77,14 @@ GMRES: #iterations: 5, residual |Ax-b|/|b|: 3.008e-13
   GMRES: 6.615e-01 s.
 <<<<GMRES=5
 ```
+
+## Benchmarks
+
+You can reproduce the benchmarks in the spaQR papers by running the scripts available in ```benchmarks/``` folder
+
+
 ## Note
 
 1. You can generate more sparse matrices corresponding to Poisson equation, (High constrast) Advection diffusion using the open source codes in https://github.com/leopoldcambier/MatrixGen
-2. The MC64 routine (bipartite matching) rountine from HSL is needed for problems with high condition number, to ensure stability
+2. You can generate more least squares matrices corresponding to the inverse Poisson problem using the MATLAB codes available in ```matrix_gen\```
+3. The MC64 routine (bipartite matching) rountine from HSL is needed for problems with high condition number and for rectangular matrices 

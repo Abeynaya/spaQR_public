@@ -1,5 +1,5 @@
-#ifndef OPERATIONS_H
-#define OPERATIONS_H
+#ifndef TOPERATIONS_H
+#define TOPERATIONS_H
 
 #include <vector>
 #include <list>
@@ -9,17 +9,18 @@
 #include "cluster.h"
 #include "edge.h"
 
+
 /** An operation applied on the matrix **/
-struct Operation {
+struct tOperation {
     public:
         virtual void fwd() = 0;
         virtual void bwd() = 0;
-        virtual ~Operation() {};
+        virtual ~tOperation() {};
         virtual std::string Opname() {return "o";};
 };
 
 /* QR factorization */
-struct QR : public Operation {
+struct tQR : public tOperation {
 private:
 	Cluster* c;
 	int nrows; // nrows in Q
@@ -28,9 +29,8 @@ private:
 	int ccols; // ncols in c
 	std::vector<int> A21_indices; 
 	std::vector<int> A12_indices;
-
 public:
-	QR(Cluster* c_): c(c_), nrows(0), ncols(c->cols()), ccols(c->cols()){
+	tQR(Cluster* c_): c(c_), nrows(0), ncols(c->cols()), ccols(c->cols()){
 		for (auto e: c->edgesOut){
 			if (e->A21 != nullptr){ // For rectangular matrices, edge->A21 gets deleted (Q part)
 				A21_indices.push_back(e->n2->rows());
@@ -46,145 +46,143 @@ public:
 	void fwd();
 	void bwd();
 	std::string Opname(){return "QR";}
-	~QR(){}
+	~tQR(){}
 };
 
 
 /* Reassign rows between clusters */
-struct Reassign : public Operation{
+struct tReassign : public tOperation{
 private: 
 	Cluster* c;
-	// Eigen::VectorXd* cseg;
 	Cluster* n;
 	int nstart;
 	int nrows;
 	std::vector<int> indices;
+
 public:
-	Reassign(Cluster* c_, Eigen::VectorXi ind_,  Cluster* n_, int nstart_, int nrows_): c(c_), n(n_), nstart(nstart_), nrows(nrows_){
+	tReassign(Cluster* c_, Eigen::VectorXi ind_,  Cluster* n_, int nstart_, int nrows_): c(c_), n(n_), nstart(nstart_), nrows(nrows_){
 		for (int i=0; i < ind_.size(); ++i){
 			indices.push_back(c_->cols() + ind_[i]);
 		}
 	}
-	void fwd();
-	void bwd(){};
+	void fwd(){};
+	void bwd();
 	std::string Opname(){return "Reassign";}
-	~Reassign(){}
+
+	~tReassign(){}
 };
+
 
 /* Scaling */
-struct Scale: public Operation{
-private:
-    Segment xs;
-    Eigen::MatrixXd* R;
-public: 
-    Scale(Cluster* c, Eigen::MatrixXd* R_) : xs(c->head()), R(R_){}
-    void fwd(){};
-    void bwd();
-	std::string Opname(){return "Scale";}
-    ~Scale(){
-        delete R;
-    }
+struct tScale: public tOperation{
+    private:
+        Segment xs;
+        Eigen::MatrixXd* R;
+    public: 
+        tScale(Cluster* c, Eigen::MatrixXd* R_) : xs(c->thead()), R(R_){}
+        void fwd();
+        void bwd(){};
+		std::string Opname(){return "Scale";}
+
+        ~tScale(){
+            delete R;
+        }
 };
 
-struct ScaleD: public Operation{
+struct tScaleD: public tOperation{
 private:
     Segment xs;
     Segment xsf;
     Eigen::MatrixXd* Q; //has both Q and R
-    Eigen::VectorXd* t;
-public: 
-    ScaleD(Cluster* c, Eigen::MatrixXd* Q_, Eigen::VectorXd* t_) : xs(c->head()), 
-    															 xsf(c->full()), Q(Q_), t(t_){}
 
-    ScaleD(Cluster* c, Eigen::MatrixXd* Q_) : xs(c->head()), xsf(c->full()), Q(Q_){
-    	t = nullptr;
-    }
+public: 
+    tScaleD(Cluster* c, Eigen::MatrixXd* Q_) : xs(c->thead()), xsf(c->tfull()), Q(Q_){};
+    
     void fwd();
-    void bwd();
+    void bwd(){};
 	std::string Opname(){return "ScaleD";}
-    ~ScaleD(){
+    ~tScaleD(){
         delete Q;
-        if(t) delete t;
     }
 };
 
 
+
 /* Sparsification using Orthogonal transformations */
-struct Orthogonal : public Operation {
+struct tOrthogonal : public tOperation {
 private: 
 	Segment xs;
     Eigen::MatrixXd* V;
     Eigen::VectorXd* tau;
 public:
-	Orthogonal(Cluster* c, Eigen::MatrixXd* V_, Eigen::VectorXd* tau_) : 
-		xs(c->head()), V(V_), tau(tau_){}	
-	void fwd(){};
-	void bwd();
+	tOrthogonal(Cluster* c, Eigen::MatrixXd* V_, Eigen::VectorXd* tau_) : 
+		xs(c->thead()), V(V_), tau(tau_){}	
+	void fwd();
+	void bwd(){};
 	std::string Opname(){return "Orthogonal";}
 
-	~Orthogonal(){
+	~tOrthogonal(){
 		delete V;
 		delete tau;
 	}
 };
 
-/* Sparsification using Orthogonal transformations when diag blocks are scaled */
-struct OrthogonalD : public Operation {
+struct tOrthogonalD : public tOperation {
 private: 
 	Segment xs;
     Eigen::MatrixXd* V;
     Eigen::VectorXd* tau;
 public:
-	OrthogonalD(Cluster* c, Eigen::MatrixXd* V_, Eigen::VectorXd* tau_) : 
-		xs(c->head()), V(V_), tau(tau_){}	
+	tOrthogonalD(Cluster* c, Eigen::MatrixXd* V_, Eigen::VectorXd* tau_) : 
+		xs(c->thead()), V(V_), tau(tau_){}	
 	void fwd();
 	void bwd();
 	std::string Opname(){return "OrthogonalD";}
 
-	~OrthogonalD(){
+	~tOrthogonalD(){
 		delete V;
 		delete tau;
 	}
 };
 
 /* Merge in Cluster heirarchy */
-struct Merge : public Operation {
+struct tMerge : public tOperation {
 private:
 	Cluster* parent;
 public:
-	Merge(Cluster* p): parent(p){}
+	tMerge(Cluster* p): parent(p){}
 	void fwd();
 	void bwd();
 	std::string Opname(){return "Merge";}
 
-	~Merge(){}
+	~tMerge(){}
 
 };
 
 /* Split between coarse and fine nodes */
-struct Split : public Operation {
+struct tSplit : public tOperation {
 private:
 	Segment xsc_head;
 	Segment xsc;
 	Segment xsf;
 public:
-	Split(Cluster* coarse, Cluster* fine) : xsc_head(coarse->head()), xsc(coarse->full()), xsf(fine->full()){}
+	tSplit(Cluster* coarse, Cluster* fine) : xsc_head(coarse->thead()), xsc(coarse->tfull()), xsf(fine->tfull()){}
 	void fwd();
 	void bwd();
 	std::string Opname(){return "Split";}
 
-	~Split(){}
+	~tSplit(){}
 };
 
-struct SplitD : public Operation {
+struct tSplitD : public tOperation {
 private:
 	Segment xsc;
 	Segment xsf;
-	int crows;
 	int ccols;
-	int rank; // new ccols
+	int crows;
+	int rank;
 public:
-	SplitD(Cluster* coarse, Cluster* fine, int rank_) : xsc(coarse->full()), xsf(fine->full()){
+	tSplitD(Cluster* coarse, Cluster* fine, int rank_) : xsc(coarse->tfull()), xsf(fine->tfull()){
 		crows = coarse->rows();
 		ccols = coarse->cols();
 		rank = rank_;
@@ -193,7 +191,7 @@ public:
 	void bwd();
 	std::string Opname(){return "SplitD";}
 
-	~SplitD(){}
+	~tSplitD(){}
 };
 
 

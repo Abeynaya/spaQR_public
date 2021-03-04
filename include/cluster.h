@@ -8,19 +8,9 @@
 #include <list>
 #include <set>
 #include <tuple>
-// #include <utility>
-// #include <queue>
-// #include <Eigen/Core>
-// #include <Eigen/SparseCore>
-// #include <Eigen/QR>
-// #include <Eigen/Householder> 
-// #include <Eigen/SVD>
-// #include <numeric>
 #include <assert.h>
-// #include <limits>
 
 #include "util.h"
-// #include "edge.h"
 
 typedef Eigen::SparseMatrix<double, 0, int> SpMat;
 
@@ -248,6 +238,8 @@ public:
 
     void extract_vector(Eigen::VectorXd& soln);
     void textract_vector(Eigen::VectorXd& soln);
+    void textract_vector();
+
 
 
     /* Destructor */

@@ -1,12 +1,10 @@
 #include "partition.h"
 
-
 #ifdef HSL_AVAIL
 extern "C"{
     #include "hsl_mc64d.h"
 }
 #endif
-
 
 using namespace Eigen;
 using namespace std;
@@ -29,31 +27,6 @@ tuple<vector<int>,vector<int>> SpMat2CSC(SpMat& A) {
         }
     }
     return make_tuple(colptr, rowval);
-}
-
-tuple<vector<int>,vector<int>, vector<double>> SpMat2CSR(SpMat& A) {
-    int size = A.rows();
-    vector<int> rowptr(size+1);
-    vector<int> colidx;
-    vector<double> values;
-
-    SpMat At = A.transpose();
-
-    rowptr[0] = 0;
-    for(int i = 0; i < size; i++) {
-        rowptr[i+1] = rowptr[i];
-        for (SpMat::InnerIterator it(At,i); it; ++it) {
-            // assert(i == it.col());
-            int j = it.row(); // column
-            
-            colidx.push_back(j);
-            rowptr[i + 1] += 1;
-            values.push_back(it.value()); 
-            // if (i == 46) { cout << j << " " << it.value() << endl; }
-            
-        }
-    }
-    return make_tuple(rowptr, colidx, values);
 }
 
 tuple<vector<int>,vector<int>> SpMat2CSC_noloops(SpMat& A) {
@@ -109,48 +82,85 @@ SepID find_highest_common(SepID n1, SepID n2) {
     }
     assert(lvl1 == lvl2);
     assert(sep1 == sep2);
-    // assert(part1 == part2);
     return SepID(lvl1, sep1);
 }
 
-#ifdef HSL_AVAIL
-/* Bipartite row matching */
-void bipartite_row_matching(SpMat& A, vector<ClusterID>& cmap, vector<ClusterID>& rmap){
-    SpMat Aabs = A.cwiseAbs();
-    auto csc = SpMat2CSC(Aabs);
-    auto colptr = get<0>(csc);
-    auto rowval = get<1>(csc);
+SepID find_lowest_common(SepID n1, SepID n2) {
+    int lvl1 = n1.lvl;
+    int lvl2 = n2.lvl;
+    int sep1 = n1.sep;
+    int sep2 = n2.sep;
 
-    struct mc64_control control;
-    struct mc64_info info;
-    mc64_default_control(&control);
-
-    int m = A.rows();
-    int n = A.cols();
-    vector<int> perm(m+n);
-    vector<int> invrperm(m);
-    vector<int> invcperm(n);
-
-    int job = 3;
-    int matrix_type = 1; // unsymmtric or rectangular
-    mc64_matching(job, matrix_type, m, n, colptr.data(), rowval.data(), Aabs.valuePtr(),
-                        &control, &info, perm.data(), NULL);
-
-
-    for (int i=0; i < m; ++i ){
-        invrperm[perm[i]] = i; 
+    if (lvl1 < lvl2){
+        return n1;
     }
-    for (int j=m; j < m+n; ++j){
-        invcperm[perm[j]] = j-m; 
+    else { // lvl 1 > lvl 2
+        assert(lvl1 > lvl2);
+        return n2;
     }
-
-    for (int i=0; i< min(m,n); ++i){
-        rmap[invrperm[i]] = cmap[invcperm[i]]; 
-    }
-
 }
 
-void bipartite_row_matching(SpMat& A, vector<int>& cpair_of_r){
+/* Assign rows to clusters according to the specified parameters */
+void rows2clusters(SpMat& A, vector<ClusterID>& cmap, vector<ClusterID>& rmap, int use_matching){
+    int nrows = A.rows();
+    int ncols = A.cols();
+
+    if (nrows != ncols){
+        // Permute cols according the clusters
+        vector<ClusterID> cpermed(ncols);
+        VectorXi cperm = VectorXi::LinSpaced(ncols,0,ncols-1);
+        auto compIJ = [&cmap](int i, int j){return (cmap[i] < cmap[j]);};
+        stable_sort(cperm.data(), cperm.data()+cperm.size(), compIJ); 
+        transform(cperm.data(), cperm.data()+cperm.size(), cpermed.begin(), [&cmap](int i){return cmap[i];});
+
+        #ifdef HSL_AVAIL
+            if (use_matching){
+                bipartite_row_matching(A, cmap, rmap);
+            }
+        #endif 
+        
+        form_rmap(A, rmap, cpermed, cperm);
+    }
+
+    else {
+        #ifdef HSL_AVAIL
+            if (use_matching)
+                bipartite_row_matching(A, cmap, rmap);
+            else 
+                rmap = cmap;
+        #else 
+            rmap = cmap;
+        #endif 
+    }
+}
+
+void rmap2cmap(SpMat& A, vector<ClusterID>& cmap, vector<ClusterID>& rmap, int use_matching){
+    int ncols = A.cols();
+
+    #ifdef HSL_AVAIL
+        if (use_matching)
+            bipartite_row_matching(A, cmap, rmap, false);
+        else {
+            cout << "Proceeding by matching row i to col i ..." << endl;
+            cout << "Set --hsl 1 if you want to use bipartite matching routine" << endl;
+            for (int i=0; i < ncols; ++i){
+                cmap[i] = rmap[i];
+            }
+        }
+    #else 
+        cout << "May need HSL bipartite matching routine to work correctly." << endl;
+        cout << "Proceeding by matching row i to col i ..." << endl;
+        cmap = rmap;
+        for (int i=0; i < ncols; ++i){
+            cmap[i] = rmap[i];
+        }
+    #endif 
+}
+
+
+#ifdef HSL_AVAIL
+/* Bipartite row matching */
+void bipartite_row_matching(SpMat& A, vector<ClusterID>& cmap, vector<ClusterID>& rmap, bool cmap2rmap){
     SpMat Aabs = A.cwiseAbs();
     auto csc = SpMat2CSC(Aabs);
     auto colptr = get<0>(csc);
@@ -172,17 +182,58 @@ void bipartite_row_matching(SpMat& A, vector<int>& cpair_of_r){
                         &control, &info, perm.data(), NULL);
 
     for (int i=0; i < m; ++i ){
-        invrperm[perm[i]] = i; 
+        if (perm[i] >= 0) // perm[i] is negative for unmatched rows and columns
+            invrperm[perm[i]] = i; 
     }
     for (int j=m; j < m+n; ++j){
+        assert(perm[j]>=0); // since we only have rows>= cols. so all cols should be matched.
         invcperm[perm[j]] = j-m; 
     }
 
 
-    for (int i=0; i < m; ++i){
-        cpair_of_r[invrperm[i]] = invcperm[i];
+    for (int i=0; i< min(m,n); ++i){
+        if (cmap2rmap)
+            rmap[invrperm[i]] = cmap[invcperm[i]]; 
+        else 
+            cmap[invcperm[i]] = rmap[invrperm[i]];
+    }
+}
+
+void bipartite_row_matching(SpMat& A, vector<ClusterID>& cmap, VectorXi& rperm){
+    SpMat Aabs = A.cwiseAbs();
+    auto csc = SpMat2CSC(Aabs);
+    auto colptr = get<0>(csc);
+    auto rowval = get<1>(csc);
+
+    struct mc64_control control;
+    struct mc64_info info;
+    mc64_default_control(&control);
+
+    int m = A.rows();
+    int n = A.cols();
+    vector<int> perm(m+n);
+    vector<int> invrperm(m);
+    vector<int> cperm(n);
+
+    int job = 2;
+    int matrix_type = 1; // unsymmtric or rectangular
+    mc64_matching(job, matrix_type, m, n, colptr.data(), rowval.data(), Aabs.valuePtr(),
+                        &control, &info, perm.data(), NULL);
+
+    for (int j=m; j < m+n; ++j){
+        assert(perm[j]>=0); // since we only have rows>= cols. so all cols should be matched.
+        cperm[perm[j]] = j-m;
     }
 
+    int counter=0;
+    for (int i=0; i < m; ++i ){
+        if (perm[i] >= 0) // perm[i] is negative for unmatched rows and columns
+            rperm[cperm[perm[i]]] = i; // i=0 to n-1 have been filled
+        else {
+            rperm[n+counter] = i;
+            counter++;
+        }
+    }
 }
 #endif
 
@@ -228,9 +279,8 @@ void bissect_geo(vector<int> &colptr, vector<int> &rowval, vector<int> &dofs, ve
     }
 }
 
-
 /* Infer Separators */
-tuple<vector<ClusterID>, vector<ClusterID>> GeometricPartitionAtA(SpMat& A, int nlevels, MatrixXd* Xcoo, int use_matching){
+vector<ClusterID> GeometricPartitionAtA(SpMat& A, int nlevels, MatrixXd* Xcoo, int use_matching){
     SpMat AtA = A.transpose()*A;
 
     int c = AtA.cols();
@@ -271,7 +321,6 @@ tuple<vector<ClusterID>, vector<ClusterID>> GeometricPartitionAtA(SpMat& A, int 
                             if (pj == pi+1){
                                 sep = true;
                                 break;
-                                // cmap[j].self = SepID(l,pi/2);
                             }
                         }
                     }
@@ -293,21 +342,10 @@ tuple<vector<ClusterID>, vector<ClusterID>> GeometricPartitionAtA(SpMat& A, int 
     }
 
     vector<ClusterID> rmap(A.rows(), ClusterID());
+    rows2clusters(A, cmap, rmap, use_matching);
 
-    #ifdef HSL_AVAIL
-        if (use_matching)
-            bipartite_row_matching(A, cmap, rmap);
-        else 
-            rmap = cmap;
-    #else 
-        rmap = cmap;
-    #endif    
-
-    vector<ClusterID> cmapA = cmap;
-    vector<ClusterID> rmapA = rmap;
-
-    getInterfacesUsingA(A, nlevels, cmapA, rmapA, parts, use_matching);
-    return make_tuple(cmapA, rmapA);
+    getInterfacesUsingA(A, nlevels, cmap, rmap, parts, use_matching);
+    return cmap;
 }
 
 #ifdef USE_METIS
@@ -330,7 +368,7 @@ void partition_metis_RB(SpMat& A, int nlevels, vector<int>& parts){
                                               nullptr, nullptr, nullptr, &nparts, nullptr, nullptr, options, &objval, parts.data());
 };
 
-tuple<vector<ClusterID>, vector<ClusterID>> MetisPartition(SpMat& A, int nlevels){
+vector<ClusterID> MetisPartition(SpMat& A, int nlevels){
     SpMat AtA = A.transpose()*A;
     int c = A.cols();
     int r = A.rows();
@@ -339,7 +377,6 @@ tuple<vector<ClusterID>, vector<ClusterID>> MetisPartition(SpMat& A, int nlevels
     
     // getInterfacesUsingATA(AtA, nlevels, cmap, parts);
     vector<ClusterID> cmap(c, ClusterID());
-    vector<ClusterID> rmap(A.rows());
 
     // Get separators using AtA
     for (int depth = 0; depth < nlevels -1; depth++){
@@ -379,7 +416,7 @@ tuple<vector<ClusterID>, vector<ClusterID>> MetisPartition(SpMat& A, int nlevels
     }
 
     getInterfacesUsingATA(AtA, nlevels, cmap, parts);    
-    return make_tuple(cmap, rmap);
+    return cmap;
 }
 #else
 /* HyperGraph Partition*/
@@ -398,6 +435,7 @@ void partition_patoh(SpMat& A, int nlevels, vector<int>& parts){
 
     PaToH_Parameters args;
     PaToH_Initialize_Parameters(&args, PATOH_CONPART, PATOH_SUGPARAM_DEFAULT); // Initialize parameters
+    // The third parameter can be set to _SPEED, _QUALITY, _DEFAULT
     args._k = nparts;
     args.seed = 42;
 
@@ -410,7 +448,7 @@ void partition_patoh(SpMat& A, int nlevels, vector<int>& parts){
     PaToH_Free();
 }
 
-tuple<vector<ClusterID>, vector<ClusterID>> HypergraphPartition(SpMat& A, int nlevels){
+vector<ClusterID> HypergraphPartition(SpMat& A, int nlevels){
     int r = A.rows();
     int c = A.cols(); 
 
@@ -457,9 +495,8 @@ tuple<vector<ClusterID>, vector<ClusterID>> HypergraphPartition(SpMat& A, int nl
         }
     }
 
-    vector<ClusterID> rmap(r);
-    getInterfacesUsingA_HUND(A, nlevels, cmap, rmap, parts);
-    return make_tuple(cmap, rmap);
+    getInterfacesUsingA_HUND(A, nlevels, cmap, parts);
+    return cmap;
 }
 #endif
 
@@ -468,26 +505,20 @@ tuple<vector<ClusterID>, vector<ClusterID>> HypergraphPartition(SpMat& A, int nl
 * Use A to get interfaces of separators -- use only with geometric partition on A^TA 
 */
 void getInterfacesUsingA(SpMat& A, int nlevels, vector<ClusterID>& cmap, vector<ClusterID>& rmap, vector<int> parts, int use_matching){
-    int ncols = A.cols();
     int nrows = A.rows();
 
     SpMat At = A.transpose();
-
-    // Leaf-clusters
-    for(int i = 0; i < ncols; i++) {
-        SepID self = cmap[i].self;
-        // If it's a separator
+    for(int i = 0; i < nrows; i++) {
+        SepID self = rmap[i].self;
+        // If it's a separator row
         if(self.lvl > 0) {
             // Define left/right part
             // Find left & right SepID
             SepID left = SepID(-1,0);
             SepID right = SepID(-1, 0);
-            int pi = part_at_lvl(parts[i], self.lvl, nlevels); // parts is given for columns
-            assert(self.sep == pi/2);
-
-            for (SpMat::InnerIterator it(A,i); it; ++it) { // should be done for looking through the row too? outer iterator
-                int j = it.row();
-                SepID nbr = rmap[j].self;
+            for (SpMat::InnerIterator ot(At,i); ot; ++ot) { // look through columns of that row
+                int j = ot.row();
+                SepID nbr = cmap[j].self;
 
                 if(nbr.lvl < self.lvl) {
                     int pj = nbr.sep;
@@ -495,72 +526,62 @@ void getInterfacesUsingA(SpMat& A, int nlevels, vector<ClusterID>& cmap, vector<
                     
                     if(pj % 2 == 0) { // Update left. It could be empty.
                         if (left.lvl == -1) left  = nbr;
-                        else left  = find_highest_common(nbr, left);
+                        else left  = find_lowest_common(nbr, left);
                       
-                    } else { // Update right. It cannot be empty.
-                        if(right.lvl == -1) right = cmap[j].self;
-                        else right = find_highest_common(nbr, right);
+                    } else { // Update right. It could be empty.
+                        if(right.lvl == -1) right = nbr;
+                        else right = find_lowest_common(nbr, right);
                     }
                 }
             }
 
-            cmap[i].l = left;
-            cmap[i].r = right;
-            cmap[i].section = 0;
+            rmap[i].l = left;
+            rmap[i].r = right;
         }
     }
-    
-    for(int i = 0; i < ncols; i++) {
-        SepID self = cmap[i].self;
-        if(self.lvl == 0) {
-            cmap[i].l = self;
-            cmap[i].r = self;
-        }
-    }
+    // Go from rmap to cmap
+    rmap2cmap(A, cmap, rmap, use_matching);
 
-    #ifdef HSL_AVAIL
-        if (use_matching)
-            bipartite_row_matching(A, cmap, rmap);
-        else 
-            rmap = cmap;
-    #else 
-        rmap = cmap;
-    #endif    
-
-    for (int i=0; i< ncols; ++i){
-        SepID self = cmap[i].self;
-        SepID left = cmap[i].l;
-        SepID right = cmap[i].r;
-        if (right == SepID()){
-            for (SpMat::InnerIterator it(A,i); it; ++it){
-                int j = it.row();
-                if (self == rmap[j].self && rmap[j].r != SepID() ){
-                    if (right == SepID()) right = rmap[j].r;
-                    else right = find_highest_common(right, rmap[j].r);
+    for (int i=0; i< nrows; ++i){
+        SepID self = rmap[i].self;
+        SepID left = rmap[i].l;
+        SepID right = rmap[i].r;
+        if (right == SepID()){ // I need a right id
+            for (SpMat::InnerIterator ot(At,i); ot; ++ot){
+                int j = ot.row(); // j column
+                if (self == cmap[j].self && cmap[j].r != SepID()){ 
+                    if (right == SepID()) right = cmap[j].r;
+                    else right = find_highest_common(right, cmap[j].r); 
+                    // okay to keep highest common nbr here as this is a distance 2 connection -- keep fewer interfaces
                 }
             }
         }
         else if (left == SepID()){
-            for (SpMat::InnerIterator it(A,i); it; ++it){
-                int j = it.row();
-                if (self == rmap[j].self && rmap[j].l != SepID() ){
-                    if (left == SepID()) left = rmap[j].l;
-                    else left = find_highest_common(left, rmap[j].l);
+            for (SpMat::InnerIterator ot(At,i); ot; ++ot){
+                int j = ot.row();
+                if (self == cmap[j].self && cmap[j].l != SepID() ){
+                    if (left == SepID()) left = cmap[j].l;
+                    else left = find_highest_common(left, cmap[j].l);
                 }
             }
         }
-        cmap[i].l = left;
-        cmap[i].r = right; 
-        // cout << cmap[i] << endl;
-        assert(left != SepID());
-        assert(right != SepID());
+        rmap[i].l = left;
+        rmap[i].r = right; 
     }
+
+    for (int i=0; i < nrows; ++i){
+        if (rmap[i].l == SepID()) rmap[i].l = rmap[i].self;
+        if (rmap[i].r == SepID()) rmap[i].r = rmap[i].self;
+    }
+
+    // Go from rmap to cmap
+    rmap2cmap(A, cmap, rmap, use_matching);
 }
 
+
 /* Infer interfaces */
-void getInterfacesUsingA_HUND(SpMat& A, int nlevels, vector<ClusterID>& cmap, vector<ClusterID>& rmap, vector<int> parts){
+void getInterfacesUsingA_HUND(SpMat& A, int nlevels, vector<ClusterID>& cmap, vector<int> parts){
     assert(cmap.size() == A.cols());
-    assert(rmap.size() == A.rows());
     int c = A.cols();
     SpMat At = A.transpose();
 
@@ -595,48 +616,9 @@ void getInterfacesUsingA_HUND(SpMat& A, int nlevels, vector<ClusterID>& cmap, ve
         }
     }
 
-    auto compIJ = [](ClusterID i, ClusterID j){return i<j;};
-    auto cmap_copy = cmap;
-
-    // Find corner cases that do not have a left or a right nbr and absolve them into the neighboring separator that's the lowest higher level than self
     for (int i=0; i < c; ++i){
-        auto cself = cmap[i];
-        if (cmap[i].l == SepID() || cmap[i].r == SepID()){
-            set<ClusterID, decltype(compIJ)> possible_nbrs(compIJ); 
-            for (SpMat::InnerIterator it(A,i); it; ++it){
-                int j= it.row();
-                for (SpMat::InnerIterator ot(At,j); ot; ++ot){
-                    int k = ot.row();
-                    auto nbr = cmap[k];
-                    if (nbr.self.lvl >= cself.self.lvl && nbr != cself && nbr.r != SepID() && nbr.l != SepID()) possible_nbrs.insert(nbr);
-                }
-            }
-
-            {
-                if (cself.l == SepID()  && cself.r == SepID()) {cmap_copy[i] = *possible_nbrs.begin();}
-                else if (cself.l != SepID()) {
-                    bool found = false;
-                    for (auto n: possible_nbrs){
-                        if (cself.l == n.l) {cmap_copy[i] = n; found = true; break;}
-                    }
-                    if (!found){cmap_copy[i] = *possible_nbrs.begin();}
-                }
-                else if (cself.r != SepID()){
-                    bool found = false;
-                    for (auto n: possible_nbrs){
-                        if (cself.r == n.r) {cmap_copy[i] = n; found = true; break;}
-                    }
-                    if (!found){cmap_copy[i] = *possible_nbrs.begin();}
-                }
-            }
-        }
-    }
-
-    cmap = cmap_copy;
-
-    for (int i=0; i < c; ++i){
-        assert(cmap[i].l != SepID());
-        assert(cmap[i].r != SepID());
+        if (cmap[i].l == SepID()) cmap[i].l = cmap[i].self;
+        if (cmap[i].r == SepID()) cmap[i].r = cmap[i].self;
     }
 
 }
@@ -691,8 +673,6 @@ void getInterfacesUsingATA(SpMat& A, int nlevels, vector<ClusterID>& cmap, vecto
             cmap[i].section = parts[i];
         }
     }
-
-
 }
 
 

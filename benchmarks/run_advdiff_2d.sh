@@ -15,4 +15,3 @@ t=$((($i)%2))
 .././spaQR -m ${FILE[n]} -n ${N[n]} -d 2  -t ${T[t]}  --skip 4 --scale 1 --solver "GMRES"
 .././spaQR -m ${FILE[n]} -n ${N[n]} -d 2  -t ${T[t]}  --skip 4 --scale 0 --solver "GMRES"
 done
-

@@ -16,22 +16,21 @@ struct Edge{
 		Cluster* n1;
 		Cluster* n2;
 		Eigen::MatrixXd* A21;
-		Eigen::MatrixXd* A12;
 
-		Edge(Cluster* n1_, Cluster* n2_, Eigen::MatrixXd* A, Eigen::MatrixXd* AT): n1(n1_), n2(n2_){
+		Edge(Cluster* n1_, Cluster* n2_, Eigen::MatrixXd* A): n1(n1_), n2(n2_){
 			A21 = A;
-			A12 = AT;
-
 			if (A != nullptr){
 				assert(A->rows() == n2->rows());
 				assert(A->cols() == n1->cols());
 			}
-			if (AT != nullptr){
-				assert(AT->rows() == n1->rows());
-				assert(AT->cols() == n2->cols());
-			}
+			
 		}
 
+		~Edge(){
+			if (A21 != nullptr){
+				delete A21;
+			}
+		}
 };
 
 std::ostream& operator<<(std::ostream& os, const Edge& e);

@@ -23,7 +23,7 @@
 #include "edge.h"
 #include "cluster.h"
 #include "operations.h"
-#include "stats.h"
+#include "toperations.h"
 #include "profile.h"
 
 
@@ -43,10 +43,8 @@ class Tree{
         int use_matching;
         int skip;   // Skip levels before starting sparsification (0)
         int scale; // Scale (default true)
-
+        int square; // Is it a square system or not
         int max_order;
-        int output_mat; // Output matrices
-        std::string name;
 
 
         // External data (coordinates)
@@ -64,13 +62,13 @@ class Tree{
         
         /* Store the operations */
         std::vector<Operation*> ops;
+        std::vector<tOperation*> tops;
 
         /*Perform QR factorization */
-        Edge* add_edge(Cluster* c1, Cluster* c2, bool A21, bool A12);
+        Edge* add_edge(Cluster* c1, Cluster* c2);
         void householder(std::vector<Eigen::MatrixXd*> H, Eigen::MatrixXd* Q, Eigen::VectorXd* t,  Eigen::MatrixXd* T);
         int update_cluster(Cluster* c, Cluster* nn, Eigen::MatrixXd* Q);
         int eliminate_cluster(Cluster* c);
-
       
         /* Merging and updating*/
         void merge_all();
@@ -78,11 +76,16 @@ class Tree{
         void update_edges(Cluster* snew);
         bool check_if_valid(ClusterID cid, ClusterID nid, std::set<SepID> col_sparsity);
         void get_sparsity(Cluster* c);
+        void reassign_rows(Cluster* c);
+
 
         /* Sparsification */
         bool want_sparsify(Cluster* c);
         void sparsify(Cluster* c);
         void sparsifyD(Cluster* c);
+        void sparsify_extra(Cluster* c);
+        void sparsify_extra_rows(Eigen::MatrixXd& C, int& rank, double& tol, bool rel = true);
+
 
         void split_edges(Cluster* c, Cluster* f);
         void diagScale(Cluster* c);
@@ -105,8 +108,8 @@ class Tree{
     public: 
         // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Tree(int lvls, int skip_): ilvl(-1), nlevels(lvls), nrows(0), ncols(0), tol(0), 
-                        use_matching(0), skip(skip_), scale(0),  max_order(0), 
-                        output_mat(0), current_bottom(0), nnzA(0), nnzR(0), nnzH(0), nnzQ(0) {
+                        use_matching(0), skip(skip_), scale(0), square(0), max_order(0), 
+                         current_bottom(0), nnzA(0), nnzR(0), nnzH(0), nnzQ(0) {
                             bottoms = std::vector<std::list<Cluster*>>(nlevels);
                             fine = std::vector<std::list<Cluster*>>(nlevels);
                             Xcoo = nullptr;
@@ -120,7 +123,7 @@ class Tree{
         void set_skip(int s);
         void set_scale(int s);
         void set_Xcoo(Eigen::MatrixXd*);
-        void set_output(int s, std::string n);
+        void set_square(int s);
 
 
         // Get access to basic info
@@ -136,9 +139,8 @@ class Tree{
         int factorize();
         void solve(Eigen::VectorXd b, Eigen::VectorXd& x) const; // Solve Ax = b
 
-        // Stats
-        std::list<const Cluster*> get_clusters() const;
-        std::list<const Cluster*> get_clusters_at_lvl(int l) const;
+        // Least squares
+        void solve_nrml(Eigen::VectorXd b, Eigen::VectorXd& x) const; // solve W^TWx = A^T b
 
         /** Destructor */
         ~Tree();

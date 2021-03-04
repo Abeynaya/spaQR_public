@@ -42,18 +42,30 @@ void QR::bwd(){
 	MatrixXd R;
 	int i=0;
 	Segment xs = c->get_x()->segment(0, ccols);
-	for (auto e: c->edgesOut){
-		if (e->A12 != nullptr){
-			int s = A12_indices[i];
-			assert(e->A12->cols() == s);
-			xs -= (e->A12->topRows(ccols))*(e->n2->get_x()->segment(0, s)); 
-			++i;
-		}
-		else if (e->n2 == c){
-			R = (e->A21)->topRows(xs.size());
-		}
+	for (auto e: c->edgesIn){
+		assert(e->A21 != nullptr);
+		int s = A12_indices[i];
+		assert(e->A21->cols() == s);
+		xs -= (e->A21->topRows(ccols))*(e->n1->get_x()->segment(0, s)); 
+		++i;	
 	}
+	assert((*c->edgesOut.begin())->n2 == c);
+
+	R = ((*c->edgesOut.begin())->A21->topRows(xs.size()));
 	trsv(&R, &xs, CblasUpper, CblasNoTrans, CblasNonUnit);
+
+}
+
+/* Reassign rows */
+void Reassign::fwd(){
+	// cout << c->get_id() << " " << n->get_id() << endl;
+	assert(indices.size() == nrows);
+	for (int i= nstart; i < nstart+nrows; ++i){
+		// n->get_x()->segment(i,1) = c->get_x()->segment(indices[i-nstart],1);
+		(*n->get_x())[i] = (*c->get_x())[indices[i-nstart]];
+
+	}
+
 }
 
 /* Scaling */
@@ -62,6 +74,7 @@ void Scale::bwd(){
 }
 
 void ScaleD::fwd(){
+	assert(t != nullptr);
 	ormqr_trans(Q, t, &xsf);
 }
 
@@ -86,16 +99,19 @@ void Merge::fwd(){
 			++k;
 		}
 	}
+	// assert(k== parent->get_x()->size());
 }
 
 void Merge::bwd(){
 	int k=0;
+	// cout << "merge bwd " << parent->get_id() << endl;
 	for (auto c: parent->children){
 		for (int i=0; i < c->cols(); ++i){
 			(*c->get_x())[i] = (*parent->get_x())[k];
 			++k;
 		}
 	}
+	// assert(k== parent->get_x()->size());
 }
 
 /* Split between coarse and fine nodes */

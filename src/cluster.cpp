@@ -26,9 +26,7 @@ ClusterID merge_if(ClusterID& c, int lvl) {
     auto section = c.section;
     if (lvl > 0) 
         section /= 2;
-    // auto part = c.part;
     auto part = c.self.lvl == lvl ? 2 : c.part;
-    // auto part = c.part;
 
     return ClusterID(c.self, left, right, part, section);
 }
@@ -95,6 +93,12 @@ void Cluster::reset_size(int r, int c){
     csize = c;
 }
 
+void Cluster::resize_x(int r){
+    int old_r = this->x->size();
+    this->x->conservativeResize(old_r+r);
+    this->xt->conservativeResize(old_r+r);
+}
+
 /* Solution to Linear System */
 Segment Cluster::head(){
     assert(this->x != nullptr);
@@ -104,6 +108,16 @@ Segment Cluster::head(){
 Segment Cluster::full(){
     assert(this->x != nullptr);
     return this->x->segment(0, this->rsize);
+}
+
+Segment Cluster::thead(){
+    assert(this->xt != nullptr);
+    return this->xt->segment(0, this->csize);
+}
+
+Segment Cluster::tfull(){
+    assert(this->xt != nullptr);
+    return this->xt->segment(0, this->rsize);
 }
 
 Eigen::VectorXd* Cluster::get_x(){return this->x;}
@@ -125,14 +139,29 @@ void Cluster::set_vector_x(const Eigen::VectorXd& b){
 }
 
 
-void Cluster::extract_vector(Eigen::VectorXd& soln){
-    assert(x != nullptr);
-    // std::cout << this->id << std::endl;
+void Cluster::tset_vector(const Eigen::VectorXd& b){
+    assert(xt != nullptr);
+    assert(this->get_cstart()>=0);
     for (int i=0; i < this->csize_org; ++i){
-        soln[this->get_cstart()+i] = (*this->get_x())[i];
-        // std::cout << (*this->get_x())[i] << "  " ;
+        (*xt)[i] = b[this->get_cstart()+i];
     }
 }
+
+
+void Cluster::extract_vector(Eigen::VectorXd& soln){
+    assert(x != nullptr);
+    for (int i=0; i < this->csize_org; ++i){
+        soln[this->get_cstart()+i] = (*this->get_x())[i];
+    }
+}
+
+
+void Cluster::textract_vector(){//Eigen::VectorXd& soln
+    for (int i=0; i < this->rsize_org; ++i){
+        (*x)[i] = (*xt)[i];
+    }
+}
+
 
 
 /* Destructor */
