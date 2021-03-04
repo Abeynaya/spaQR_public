@@ -86,5 +86,5 @@ You can reproduce the benchmarks in the spaQR papers by running the scripts avai
 ## Note
 
 1. You can generate more sparse matrices corresponding to Poisson equation, (High constrast) Advection diffusion using the open source codes in https://github.com/leopoldcambier/MatrixGen
-2. You can generate more least squares matrices corresponding to the inverse Poisson problem using the MATLAB codes available in ```matrix_gen\```
+2. You can generate more least squares matrices corresponding to the inverse Poisson problem using the MATLAB codes available in ```matrix_gen/```
 3. The MC64 routine (bipartite matching) rountine from HSL is needed for problems with high condition number and for rectangular matrices 
