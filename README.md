@@ -50,31 +50,36 @@ DNa1c037c:spaQR_public abey$ ./spaQR -m mats/advdiff/2d/advdiff_2_128_1_p1_1000.
 Matrix mats/advdiff/2d/advdiff_2_128_1_p1_1000.mm with 16384 rows,  16384 columns loaded
 --Levels not provided
  Levels set to ceil(log2(ncols/64)) =  8
-Pre-process time: 0.00138402
+Pre-process time: 0.00171
 Tensor coordinate matrix of size 128^2 built
-Time to partition: 0.0263851
-nnzA: 81408
-Time to assemble: 0.022332
-lvl: 0    update fill-in: 0.001  elmn: 1.466  scale: 0.137  sprsfy: 0.222  merge: 0.068  s_top: 254, 254
-lvl: 1    update fill-in: 0.016  elmn: 3.975  scale: 0.114  sprsfy: 0.363  merge: 0.039  s_top: 216, 216
-lvl: 2    update fill-in: 0.006  elmn: 0.992  scale: 0.045  sprsfy: 0.127  merge: 0.008  s_top: 163, 163
-lvl: 3    update fill-in: 0.001  elmn: 0.171  scale: 0.014  sprsfy: 0.032  merge: 0.002  s_top: 132, 132
-lvl: 4    update fill-in: 0.000  elmn: 0.018  scale: 0.003  sprsfy: 0.006  merge: 0.000  s_top: 99, 99
-lvl: 5    update fill-in: 0.000  elmn: 0.002  scale: 0.001  sprsfy: 0.001  merge: 0.000  s_top: 63, 63
-lvl: 6    update fill-in: 0.000  elmn: 0.000  scale: 0.000  sprsfy: 0.000  merge: 0.000  s_top: 63, 63
-lvl: 7    update fill-in: 0.000  elmn: 0.000  scale: 0.000  sprsfy: 0.000  merge: 0.000  s_top: 63, 63
+Using GeometricPartition... 
+May need HSL bipartite matching routine to work correctly.
+Proceeding by matching row i to col i ...
+May need HSL bipartite matching routine to work correctly.
+Proceeding by matching row i to col i ...
+Time to partition: 0.030164
+Time to assemble: 0.018473
+Aspect ratio of top separator: 1
+lvl: 0    update fill-in: 0.001  elmn: 0.695  shift: 0.000  scale: 0.044  sprsfy: 0.035  merge: 0.006  size top_sep: 254, 254   a.r top_sep: 1.000
+lvl: 1    update fill-in: 0.001  elmn: 0.018  shift: 0.000  scale: 0.038  sprsfy: 0.034  merge: 0.003  size top_sep: 216, 216   a.r top_sep: 1.000
+lvl: 2    update fill-in: 0.000  elmn: 0.011  shift: 0.000  scale: 0.016  sprsfy: 0.046  merge: 0.001  size top_sep: 163, 163   a.r top_sep: 1.000
+lvl: 3    update fill-in: 0.000  elmn: 0.009  shift: 0.000  scale: 0.008  sprsfy: 0.014  merge: 0.000  size top_sep: 132, 132   a.r top_sep: 1.000
+lvl: 4    update fill-in: 0.000  elmn: 0.003  shift: 0.000  scale: 0.003  sprsfy: 0.005  merge: 0.000  size top_sep: 99, 99   a.r top_sep: 1.000
+lvl: 5    update fill-in: 0.000  elmn: 0.001  shift: 0.000  scale: 0.001  sprsfy: 0.001  merge: 0.000  size top_sep: 63, 63   a.r top_sep: 1.000
+lvl: 6    update fill-in: 0.000  elmn: 0.000  shift: 0.000  scale: 0.000  sprsfy: 0.000  merge: 0.000  size top_sep: 63, 63   a.r top_sep: 1.000
+lvl: 7    update fill-in: 0.000  elmn: 0.000  shift: 0.000  scale: 0.000  sprsfy: 0.000  merge: 0.000  size top_sep: 63, 63   a.r top_sep: 1.000
 Tolerance set: 1.000e-03
-Time to factorize:  7.828e+00
+Time to factorize:  9.976e-01
 Size of top separator: 63
-nnzA: 81408 nnzR: 13666957
-nnzH: 24920434 nnzQ: 201985
-<<<<tsolv=1.060e-01
+nnzA: 81408 nnzR: 1594464
+nnzH: 2697960 nnzQ: 201985
+<<<<tsolv=3.582e-02
 One-time solve (Random b):
-<<<<|(Ax-b)|/|b| : 1.234e-03
-initial residual 1.234e-03
+<<<<|(Ax-b)|/|b| : 1.338e-03
+initial residual 1.338e-03
 GMRES converged!
-GMRES: #iterations: 5, residual |Ax-b|/|b|: 3.008e-13
-  GMRES: 6.615e-01 s.
+GMRES: #iterations: 5, residual |Ax-b|/|b|: 3.519e-13
+  GMRES: 1.412e-01 s.
 <<<<GMRES=5
 ```
 
