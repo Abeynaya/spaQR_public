@@ -38,6 +38,7 @@ int main(int argc, char* argv[]){
         // Sparsification
         ("t,tol", "Tolerance", cxxopts::value<double>()->default_value("1e-1")) 
         ("skip", "Skip sparsification", cxxopts::value<int>()->default_value("0")) 
+        ("order", "Specify order of scheme (1, 1.5) Default order=1. Use 1.5 to get a more accurate scheme but uses more memory.", cxxopts::value<float>()->default_value("1"))
         ("scale", "Do scaling. Default true.", cxxopts::value<int>()->default_value("1"))
         // Iterative method
         // ("solver","Wether to use CG or GMRES or CGLS. Default GMRES for square matrices and CGLS for rectangular.", cxxopts::value<string>()->default_value("GMRES"))
@@ -125,7 +126,8 @@ int main(int argc, char* argv[]){
         scale = 1;
     }
     double tol = result["tol"].as<double>();
-
+    float order = result["order"].as<float>();
+    
     // Pre-process matrix to have columns of unit norm (diagonal scaling)
     VectorXd Dentries(A.cols());
     DiagonalMatrix<double, Eigen::Dynamic> D(A.cols());
@@ -169,6 +171,7 @@ int main(int argc, char* argv[]){
     Tree t(nlevels, skip);
     t.set_scale(scale);
     t.set_tol(tol);
+    t.set_order(order);
     t.set_hsl(hsl);
 
 

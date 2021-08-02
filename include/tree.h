@@ -45,6 +45,7 @@ class Tree{
         int scale; // Scale (default true)
         int square; // Is it a square system or not
         int max_order;
+        float order; // Order of the sparsification scheme
 
 
         // External data (coordinates)
@@ -85,6 +86,8 @@ class Tree{
         void sparsifyD(Cluster* c);
         void sparsify_extra(Cluster* c);
         void sparsify_extra_rows(Eigen::MatrixXd& C, int& rank, double& tol, bool rel = true);
+        void sparsifyD_imp(Cluster* c);
+
 
 
         void split_edges(Cluster* c, Cluster* f);
@@ -108,7 +111,7 @@ class Tree{
     public: 
         // EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         Tree(int lvls, int skip_): ilvl(-1), nlevels(lvls), nrows(0), ncols(0), tol(0), 
-                        use_matching(0), skip(skip_), scale(0), square(0), max_order(0), 
+                        use_matching(0), skip(skip_), scale(0), square(0), max_order(0), order(1),
                          current_bottom(0), nnzA(0), nnzR(0), nnzH(0), nnzQ(0) {
                             bottoms = std::vector<std::list<Cluster*>>(nlevels);
                             fine = std::vector<std::list<Cluster*>>(nlevels);
@@ -124,7 +127,8 @@ class Tree{
         void set_scale(int s);
         void set_Xcoo(Eigen::MatrixXd*);
         void set_square(int s);
-
+        void set_order(float s);
+        
 
         // Get access to basic info
         int rows() const;

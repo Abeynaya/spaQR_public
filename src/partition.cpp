@@ -94,8 +94,7 @@ SepID find_lowest_common(SepID n1, SepID n2) {
     if (lvl1 < lvl2){
         return n1;
     }
-    else { // lvl 1 > lvl 2
-        assert(lvl1 > lvl2);
+    else { 
         return n2;
     }
 }

@@ -16,6 +16,7 @@ void Tree::set_hsl(double hsl){this->use_matching=hsl;};
 void Tree::set_skip(int s){this->skip=s;};
 void Tree::set_square(int s){this->square=s;};
 void Tree::set_scale(int s){this->scale=s;};
+void Tree::set_order(float s){this->order=s;};
 void Tree::set_Xcoo(Eigen::MatrixXd* Xcoo) {this->Xcoo = Xcoo;}
 
 /* Access to basic information */
@@ -252,7 +253,7 @@ Edge* Tree::add_edge(Cluster* c1, Cluster* c2){
 
     MatrixXd* A = new MatrixXd(c2->rows(), c1->cols());
     A->setZero();
-    assert(A12 == false); e = new Edge(c1, c2, A);
+    e = new Edge(c1, c2, A);
     c1->cnbrs.insert(c2);
     c1->add_edgeOut(e);
     if(c1 != c2) {c2->add_edgeIn(e);}
@@ -1112,6 +1113,149 @@ void Tree::sparsifyD(Cluster* c){
     cf->set_eliminated();
 }
 
+// Improved scheme - store E2: Use if order=1.5
+void Tree::sparsifyD_imp(Cluster* c){
+    if (c->cols() == 0) return;
+    vector<MatrixXd*> Apm;
+    vector<MatrixXd*> Amp;
+    Edge* e_self = nullptr;
+
+    int spm=0;
+    int smp=0;
+    for (auto e: c->edgesIn){
+        if (!(e->n1->is_eliminated())){
+            assert(e->A21 != nullptr);
+            Apm.push_back(e->A21);
+            spm += e->A21->cols();
+        }
+    }
+
+    for (auto e: c->edgesOut){
+        if (!(e->n2->is_eliminated()) && e->n2 != c){
+            assert(e->A21 != nullptr);
+            Amp.push_back(e->A21);
+            smp += e->A21->rows();
+        }
+        else if(e->n2 == c){
+            e_self = e;
+        }
+    }
+
+    assert(e_self != nullptr);
+
+    MatrixXd Apmc = Hconcatenate(Apm);
+    MatrixXd C = MatrixXd::Zero(c->cols(), spm+smp); // Block to be compressed
+    MatrixXd Apmc_rest = MatrixXd::Zero(0,0);
+    if (!this->square)
+        Apmc_rest = Apmc.bottomRows(c->rows()-c->cols()); // Get the remaining rows that won't be affected
+
+    MatrixXd Apmc_top = Apmc.topRows(c->cols()); // create a copy
+    
+    C.leftCols(smp) = Vconcatenate(Amp).transpose();
+    C.middleCols(smp, spm) = Apmc.topRows(c->cols());
+
+    int rank = 0;
+    VectorXi jpvt = VectorXi::Zero(C.cols());
+    VectorXd t = VectorXd(min(C.rows(), C.cols()));
+    VectorXd rii;
+   
+    #ifdef USE_MKL
+        /* Rank revealing QR on C with rrqr function */ 
+        int bksize = min(C.cols(), max((long)3,(long)(0.05 * C.rows())));
+        laqps(&C, &jpvt, &t, this->tol, bksize, rank);
+        rii = C.topLeftCorner(rank, rank).diagonal();
+
+    #else
+        geqp3(&C, &jpvt, &t);
+        rii = C.diagonal();
+    #endif
+    
+    rank = choose_rank(rii, this->tol);
+    if (rank >= C.rows()) return;
+
+    this->profile.neighbors[this->ilvl-skip][nlevels - c->get_sepID().lvl-1].push_back(C.cols());
+
+    /* Sparsification */
+    MatrixXd* v = new MatrixXd(C.rows(), rank);
+    VectorXd* h = new VectorXd(rank);
+    *v = C.leftCols(rank);
+    *h = t.topRows(rank);
+
+    this->ops.push_back(new OrthogonalD(c, v, h)); // push before size of c changes
+    if (!this->square)
+        this->tops.push_back(new tOrthogonalD(c, v, h)); // push before size of c changes
+
+    /* Create fine nodes */ // keep it square
+    int cf_cstart = c->get_cstart()+rank;
+    int cf_csize = c->cols()-rank;
+    int cf_rstart = c->get_rstart() + c->cols()- cf_csize;
+    int cf_rsize = cf_csize;
+    Cluster * cf = new Cluster(cf_cstart, cf_csize, cf_rstart, cf_rsize, c->get_id(), get_new_order());
+
+    
+    this->ops.push_back(new SplitD(c, cf, rank));
+    if (!this->square)
+        this->tops.push_back(new tSplitD(c, cf, rank));
+
+    this->nnzQ += (unsigned long long int)(C.rows()*rank);
+
+    c->reset_size(c->rows()-cf_csize, rank);
+
+    /* Split edges between coarse and fine */
+    MatrixXd Crank = C.topRows(rank).triangularView<Upper>();
+    MatrixXd Ctemp = Crank * (jpvt.asPermutation().transpose());
+    Crank = Ctemp;
+
+    int curr_col =0;
+    for (int i=0; i<Amp.size(); ++i){
+        *(Amp[i]) = Crank.middleCols(curr_col, Amp[i]->rows()).transpose();
+        curr_col += Amp[i]->rows();
+    }
+    int count = curr_col;
+
+    for (int i=0; i<Apm.size(); ++i){
+        Apm[i]->conservativeResize(c->rows(), NoChange);
+        (*Apm[i]).topRows(c->cols()) = Crank.middleCols(curr_col, Apm[i]->cols());
+        if (!this->square)
+            (*Apm[i]).bottomRows(c->rows()-c->cols()) = Apmc_rest.middleCols(curr_col - count, Apm[i]->cols());
+        curr_col += Apm[i]->cols();
+    }
+
+    MatrixXd* Aff = new MatrixXd(cf->rows(), cf->cols());
+    *Aff = (e_self)->A21->topLeftCorner(cf->cols(), cf->cols()); // Identity
+
+    MatrixXd self = (e_self)->A21->bottomRightCorner(c->rows(), c->cols());
+    *(e_self->A21) = self;
+
+    Edge* eff = new Edge(cf, cf, Aff);
+    cf->add_edgeOut(eff);
+
+    /* Add edges to fine nodes - storing the E2 term */
+    ormqr_trans_left(v, h, &Apmc_top);
+    curr_col= 0;
+    for (auto e: c->edgesIn){
+        if (!(e->n1->is_eliminated())){
+            assert(e->A21 != nullptr);
+            auto m = e->n1;
+            MatrixXd* Afm = new MatrixXd(cf->rows(), m->cols());
+            *Afm = Apmc_top.block(rank ,curr_col, cf->rows() , m->cols());
+
+            Edge* e = new Edge(m, cf, Afm);
+            cf->add_edgeIn(e);
+            m->add_edgeOut(e);
+            curr_col += m->cols();
+        }
+    }
+
+
+    this->fine[this->ilvl].push_back(cf);
+    cf->set_tau(cf->rows(), cf->cols());
+    this->ops.push_back(new QR(cf));
+    if (!this->square) this->tops.push_back(new tQR(cf));
+
+    cf->set_eliminated();
+}
+
 // Sparsify only the extra rows after diagScaling
 void Tree::sparsify_extra(Cluster* c){
     if (c->cols() == 0) return;
@@ -1244,7 +1388,8 @@ int Tree::factorize(){
 
                         auto spars0 = wctime();
                         if (scale){
-                            sparsifyD(self);   
+                            if (this->order == 1.5) sparsifyD_imp(self);
+                            else sparsifyD(self); 
                         }
                         else{// No scaling done
                             sparsify(self);
