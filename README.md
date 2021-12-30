@@ -1,4 +1,4 @@
-### spaQR - Sparsified QR for sparse square matrices
+### spaQR - Sparsified QR
 
 This repositroy contains the spaQR code as described in the papers
 
